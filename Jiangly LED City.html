@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jiangly LED City</title>
+
+<style>
+:root{
+    --night:#0a0f1f;
+    --road:#222;
+    --building:#111827;
+    --window-on:#ffd54f;
+    --window-off:#1f2937;
+    --led-on:#ff1a1a;
+    --led-off:#330000;
+}
+
+/* ================= BODY ================= */
+body{
+    margin:0;
+    background:var(--night);
+    overflow:hidden;
+    font-family:Arial, sans-serif;
+}
+
+/* ================= STARS ================= */
+.stars{
+    position:absolute;
+    width:100%;
+    height:100%;
+    background:
+        radial-gradient(white 1px, transparent 1px);
+    background-size:50px 50px;
+    opacity:0.3;
+}
+
+/* ================= CITY ================= */
+.city{
+    position:absolute;
+    bottom:140px;
+    width:100%;
+    display:flex;
+    align-items:flex-end;
+}
+
+.building{
+    width:80px;
+    margin:0 5px;
+    background:var(--building);
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:4px;
+    padding:5px;
+}
+
+.window{
+    width:100%;
+    padding-top:100%;
+    background:var(--window-off);
+}
+
+.window.on{
+    background-image:url("jiangly.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    box-shadow:0 0 8px #ff1a1a;
+    border-radius:4px;
+}
+
+/* ================= LED BOARD ================= */
+.led-board{
+    position:absolute;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#111;
+    padding:15px;
+    display:flex;
+    justify-content:center;
+}
+
+.matrix{
+    display:grid;
+    grid-template-columns:repeat(60,8px);
+    gap:3px;
+}
+
+.pixel{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--led-off);
+}
+
+.pixel.on{
+    background:var(--led-on);
+    box-shadow:0 0 6px var(--led-on);
+}
+
+/* ================= ROAD ================= */
+.road{
+    position:absolute;
+    bottom:0;
+    width:100%;
+    height:140px;
+    background:var(--road);
+    overflow:hidden;
+}
+
+.lane{
+    position:absolute;
+    top:65px;
+    width:200%;
+    height:6px;
+    background:repeating-linear-gradient(
+        to right,
+        white 0px,
+        white 40px,
+        transparent 40px,
+        transparent 80px
+    );
+    animation:laneMove 1s linear infinite;
+}
+
+@keyframes laneMove{
+    from{transform:translateX(0);}
+    to{transform:translateX(-80px);}
+}
+
+/* ================= BUS ================= */
+.bus{
+    position:absolute;
+    bottom:35px;
+    left:-220px;
+    width:200px;
+    height:70px;
+    background:#0ea5e9;
+    border-radius:15px;
+    animation:drive 8s linear infinite;
+}
+
+.window-bus{
+    position:absolute;
+    top:10px;
+    left:20px;
+    width:120px;
+    height:30px;
+    background:#e0f2fe;
+    border-radius:5px;
+}
+
+.wheel{
+    position:absolute;
+    bottom:-15px;
+    width:40px;
+    height:40px;
+    background:black;
+    border-radius:50%;
+    border:6px solid #444;
+    animation:spin 1s linear infinite;
+}
+
+.wheel.left{ left:25px; }
+.wheel.right{ right:25px; }
+
+@keyframes spin{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+}
+
+@keyframes drive{
+    from{left:-220px;}
+    to{left:110%;}
+}
+
+/* ================= TRAFFIC LIGHT ================= */
+.traffic-light{
+    position:absolute;
+    bottom:140px;
+    right:150px;
+    width:40px;
+    background:#333;
+    padding:8px;
+    border-radius:10px;
+}
+
+.light{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    margin:6px auto;
+    background:#111;
+}
+
+.red.active{ background:red; box-shadow:0 0 10px red; }
+.yellow.active{ background:yellow; box-shadow:0 0 10px yellow; }
+.green.active{ background:lime; box-shadow:0 0 10px lime; }
+
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+
+<!-- CITY -->
+<div class="city" id="city"></div>
+
+<!-- LED -->
+<div class="led-board">
+    <div class="matrix" id="matrix"></div>
+</div>
+
+<!-- TRAFFIC LIGHT -->
+<div class="traffic-light">
+    <div class="light red"></div>
+    <div class="light yellow"></div>
+    <div class="light green"></div>
+</div>
+
+<!-- ROAD -->
+<div class="road">
+    <div class="lane"></div>
+
+    <div class="bus">
+        <div class="window-bus"></div>
+        <div class="wheel left"></div>
+        <div class="wheel right"></div>
+    </div>
+</div>
+
+<script>
+/* ===== CITY GENERATOR ===== */
+const city=document.getElementById("city");
+
+for(let i=0;i<12;i++){
+    const building=document.createElement("div");
+    building.classList.add("building");
+    building.style.height=(100+Math.random()*150)+"px";
+
+    for(let w=0;w<18;w++){
+        const win=document.createElement("div");
+        win.classList.add("window");
+        if(Math.random()>0.5) win.classList.add("on");
+        building.appendChild(win);
+    }
+
+    city.appendChild(building);
+}
+
+/* ===== LED MATRIX ===== */
+const rows=7;
+const cols=60;
+const matrix=document.getElementById("matrix");
+let pixels=[];
+
+for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+        const div=document.createElement("div");
+        div.classList.add("pixel");
+        matrix.appendChild(div);
+        pixels.push(div);
+    }
+}
+
+const font = {
+"J":["111","001","001","101","111"],
+"I":["111","010","010","010","111"],
+"A":["111","101","111","101","101"],
+"N":["101","111","111","111","101"],
+"G":["111","100","101","101","111"],
+"L":["100","100","100","100","111"],
+"Y":["101","101","010","010","010"],
+" ":[
+"000","000","000","000","000"
+]
+};
+
+function drawChar(char, offset){
+    const pattern = font[char];
+    if(!pattern) return;
+
+    for(let r=0;r<pattern.length;r++){
+        for(let c=0;c<pattern[r].length;c++){
+            if(pattern[r][c]==="1"){
+                const index = (r+1)*cols + c + offset;
+                if(pixels[index]) pixels[index].classList.add("on");
+            }
+        }
+    }
+}
+
+let message = "JIANGLY";
+let pos = cols;
+
+setInterval(()=>{
+    pixels.forEach(p=>p.classList.remove("on"));
+
+    let spacing = 4;
+    let currentOffset = pos;
+
+    for(let i=0;i<message.length;i++){
+        drawChar(message[i], currentOffset);
+        currentOffset += spacing;
+    }
+
+    pos--;
+    if(pos < -message.length*spacing) pos = cols;
+
+}, 80);
+
+/* ===== TRAFFIC LIGHT ===== */
+const red=document.querySelector(".red");
+const yellow=document.querySelector(".yellow");
+const green=document.querySelector(".green");
+
+let state=0;
+
+setInterval(()=>{
+    red.classList.remove("active");
+    yellow.classList.remove("active");
+    green.classList.remove("active");
+
+    if(state===0) red.classList.add("active");
+    if(state===1) yellow.classList.add("active");
+    if(state===2) green.classList.add("active");
+
+    state=(state+1)%3;
+},2000);
+</script>
+
+</body>
+</html>
